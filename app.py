@@ -11,6 +11,18 @@ from skimage.morphology import skeletonize
 import base64
 from io import BytesIO
 
+# ======= Modelo Segmentacion ======== # 
+import gdown
+url1 = 'https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW'
+output = 'modelo3_b2.h5'
+gdown.download(url1, output, quiet=False)
+
+# ======= Modelo Clasificación ======== # 
+import gdown
+url2 = 'https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu'
+output = 'clasificador_superficie_SA.h5'
+gdown.download(url2, output, quiet=False)
+
 # ======== Funciones personalizadas ========
 def Weighted_Cross_Entropy(beta):
     def convert_to_logits(y_pred):
