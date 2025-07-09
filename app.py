@@ -16,10 +16,10 @@ import gdown
 
 import gdown
 # Descargar modelo de segmentación
-gdown.download('https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW', 'modelo3_b2.h5', quiet=False)
+gdown.download('https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW', 'modelo3_b2.h5', quiet=False, fuzzy=True)
 
 # Descargar modelo de clasificación
-gdown.download('https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu', 'clasificador_superficie_SA.h5', quiet=False)
+gdown.download('https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu', 'clasificador_superficie_SA.h5', quiet=False, fuzzy=True)
 
 
 
