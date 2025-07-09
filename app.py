@@ -11,18 +11,6 @@ from skimage.morphology import skeletonize
 import base64
 from io import BytesIO
 
-# ======= Modelo Segmentacion ======== # 
-import gdown
-url1 = 'https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW'
-output1 = 'modelo3_b2.h5'
-gdown.download(url1, output1, quiet=False)
-
-# ======= Modelo Clasificación ======== # 
-import gdown
-url2 = 'https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu'
-output2 = 'clasificador_superficie_SA.h5'
-gdown.download(url2, output2, quiet=False)
-
 # ======== Funciones personalizadas ========
 def Weighted_Cross_Entropy(beta):
     def convert_to_logits(y_pred):
@@ -43,6 +31,20 @@ class RepeatChannels(Layer):
 
     def call(self, inputs):
         return tf.tile(inputs, [1, 1, 1, self.rep])
+
+
+# ======= Modelo Segmentacion ======== # 
+import gdown
+url1 = 'https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW'
+output1 = 'modelo3_b2.h5'
+gdown.download(url1, output1, quiet=False)
+
+# ======= Modelo Clasificación ======== # 
+import gdown
+url2 = 'https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu'
+output2 = 'clasificador_superficie_SA.h5'
+gdown.download(url2, output2, quiet=False)
+
 
 # ======== Cargar modelos ========
 @st.cache_resource
