@@ -13,16 +13,15 @@ from io import BytesIO
 import os
 import gdown
 
-# ======= Descargar modelos desde Google Drive si no existen ========
-url1 = 'https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW'
-output1 = 'modelo3_b2.h5'
-if not os.path.exists(output1):
-    gdown.download(url1, output1, quiet=False)
 
-url2 = 'https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu'
-output2 = 'clasificador_superficie_SA.h5'
-if not os.path.exists(output2):
-    gdown.download(url2, output2, quiet=False)
+import gdown
+# Descargar modelo de segmentación
+gdown.download('https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW', 'modelo3_b2.h5', quiet=False)
+
+# Descargar modelo de clasificación
+gdown.download('https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu', 'clasificador_superficie_SA.h5', quiet=False)
+
+
 
 # ======== Funciones personalizadas ========
 def Weighted_Cross_Entropy(beta):
