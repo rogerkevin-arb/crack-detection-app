@@ -10,41 +10,37 @@ from tensorflow.keras.layers import Layer
 from skimage.morphology import skeletonize
 import base64
 from io import BytesIO
+import os
+import gdown
+
+# ======= Descargar modelos desde Google Drive si no existen ========
+url1 = 'https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW'
+output1 = 'modelo3_b2.h5'
+if not os.path.exists(output1):
+    gdown.download(url1, output1, quiet=False)
+
+url2 = 'https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu'
+output2 = 'clasificador_superficie_SA.h5'
+if not os.path.exists(output2):
+    gdown.download(url2, output2, quiet=False)
 
 # ======== Funciones personalizadas ========
 def Weighted_Cross_Entropy(beta):
     def convert_to_logits(y_pred):
         y_pred = tf.clip_by_value(y_pred, tf.keras.backend.epsilon(), 1 - tf.keras.backend.epsilon())
         return tf.math.log(y_pred / (1 - y_pred))
-
     def loss(y_true, y_pred):
         y_pred = convert_to_logits(y_pred)
         loss = tf.nn.weighted_cross_entropy_with_logits(logits=y_pred, labels=y_true, pos_weight=beta)
         return tf.reduce_mean(loss)
-
     return loss
 
 class RepeatChannels(Layer):
     def __init__(self, rep, **kwargs):
         super().__init__(**kwargs)
         self.rep = rep
-
     def call(self, inputs):
         return tf.tile(inputs, [1, 1, 1, self.rep])
-
-
-# ======= Modelo Segmentacion ======== # 
-import gdown
-url1 = 'https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW'
-output1 = 'modelo3_b2.h5'
-gdown.download(url1, output1, quiet=False)
-
-# ======= Modelo Clasificación ======== # 
-import gdown
-url2 = 'https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu'
-output2 = 'clasificador_superficie_SA.h5'
-gdown.download(url2, output2, quiet=False)
-
 
 # ======== Cargar modelos ========
 @st.cache_resource
@@ -60,11 +56,9 @@ model_clasificador = cargar_clasificador()
 
 # ======== Clasificador de superficie ========
 def predecir_superficie_streamlit(img_rgb, modelo):
-    ALTO = 128
-    ANCHO = 128
     img_bgr = cv2.cvtColor(np.array(img_rgb), cv2.COLOR_RGB2BGR)
     img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-    img_resized = cv2.resize(img_gray, (ALTO, ANCHO))
+    img_resized = cv2.resize(img_gray, (128, 128))
     img_norm = img_resized.astype(np.float32) / 255.0
     img_norm = np.expand_dims(img_norm, axis=-1)
     img_norm = np.expand_dims(img_norm, axis=0)
@@ -72,8 +66,8 @@ def predecir_superficie_streamlit(img_rgb, modelo):
     clase = "Macizo (1)" if pred >= 0.5 else "Pandereta (0)"
     return clase, pred
 
-# ======== Interfaz ========
-st.title("Detector de Grietas")
+# ======== Interfaz Streamlit ========
+st.title("Detector de Grietas en Albañilería")
 
 st.markdown("""
 ### Instrucciones para subir imágenes:
@@ -83,10 +77,9 @@ st.markdown("""
 4. **No garantiza buenos resultados** en todos los tipos de albañilería.
 """)
 
-# Parámetros
-st.markdown("### Parámetros")
-umbral = st.slider("Umbral para binarización de la máscara predicha", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-ancho_mm = st.number_input("Ancho real de la escala cuadrada (mm)", min_value=1.0, max_value=1000.0, value=50.0, step=1.0)
+# Parámetros de entrada
+umbral = st.slider("Umbral para binarización", 0.0, 1.0, 0.5, 0.01)
+ancho_mm = st.number_input("Ancho real del cuadrado verde (mm)", 1.0, 1000.0, 50.0)
 
 # Subida de imagen
 uploaded_file = st.file_uploader("Sube una imagen (.jpg, .jpeg, .png)", type=["jpg", "jpeg", "png"])
@@ -102,7 +95,7 @@ if uploaded_file is not None:
         prediction = prediction[:, :, 0]
     mask = (prediction > umbral).astype(np.uint8)
 
-    # Esqueletización
+    # Esqueletización y medición
     skeleton = skeletonize(mask).astype(np.uint8)
     dist_transform = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
     crack_width_map = dist_transform * skeleton * 2
@@ -126,42 +119,41 @@ if uploaded_file is not None:
         approx = cv2.approxPolyDP(contorno_mayor, epsilon, True)
         if len(approx) == 4:
             x, y, w, h = cv2.boundingRect(approx)
+            pixels_per_mm = np.mean([w, h]) / ancho_mm
             cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 3)
             escala_detectada = True
-            pixels_per_mm = np.mean([w, h]) / ancho_mm
     img_escala_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
     # Clasificación de superficie
     clase_superficie, confianza = predecir_superficie_streamlit(resized_image, model_clasificador)
 
-    # Mostrar resultados: imagen original y máscara
+    # Mostrar resultados
     col1, col2 = st.columns(2)
     with col1:
         st.image(resized_image, caption="Imagen original", use_container_width=True)
     with col2:
-        st.image(mask * 255, caption=f"Máscara predicha (umbral: {umbral})", use_container_width=True)
+        st.image(mask * 255, caption=f"Máscara binaria (umbral: {umbral})", use_container_width=True)
 
-    # Mapa de ancho de grietas
-    fig_width, ax_width = plt.subplots(figsize=(5, 4))
-    im = ax_width.imshow(crack_width_map, cmap='jet')
-    ax_width.scatter(max_idx[1], max_idx[0], color='white', s=80, edgecolors='black', label='Ancho máximo')
-    ax_width.set_title("Mapa de ancho de grietas")
-    ax_width.axis('off')
-    plt.colorbar(im, ax=ax_width, fraction=0.046, pad=0.04, label='Ancho (píxeles)')
-    ax_width.legend()
-
+    # Mapa de ancho
+    fig_width, ax = plt.subplots(figsize=(5, 4))
+    im = ax.imshow(crack_width_map, cmap='jet')
+    ax.scatter(max_idx[1], max_idx[0], color='white', s=80, edgecolors='black', label='Ancho máximo')
+    plt.colorbar(im, ax=ax, label="Ancho (px)")
+    ax.legend()
+    ax.set_title("Mapa de ancho de grietas")
+    ax.axis("off")
     buf_width = io.BytesIO()
     plt.tight_layout()
     plt.savefig(buf_width, format="png")
     plt.close(fig_width)
 
-    # Preparar imagen de escala como base64
+    # Imagen de escala
     buffer = BytesIO()
     Image.fromarray(img_escala_rgb).save(buffer, format="PNG")
     img_base64 = base64.b64encode(buffer.getvalue()).decode()
     caption_escala = "Escala detectada" if escala_detectada else "Escala no detectada"
 
-    # Segunda sección: columna izquierda (mapa + escala) y columna derecha (resumen)
+    # Mostrar columna izquierda (mapa + escala)
     col_izq, col_der = st.columns(2)
     with col_izq:
         st.image(buf_width.getvalue(), caption="Mapa de ancho de grietas", use_container_width=True)
@@ -177,9 +169,8 @@ if uploaded_file is not None:
 
     with col_der:
         st.markdown("### Estimación del ancho de grieta")
-        st.markdown(f"**Valor promedio:** {mean_width:.2f} píxeles")
-        st.markdown(f"**Ancho máximo:** {max_width:.2f} píxeles")
-
+        st.markdown(f"**Promedio:** {mean_width:.2f} píxeles")
+        st.markdown(f"**Máximo:** {max_width:.2f} píxeles")
         if escala_detectada and pixels_per_mm:
             mean_mm = mean_width / pixels_per_mm
             max_mm = max_width / pixels_per_mm
@@ -189,7 +180,6 @@ if uploaded_file is not None:
         else:
             st.markdown("*No se pudo calcular en mm (escala no detectada)*")
 
-        st.markdown("### Predicción de superficie")
-        st.markdown(f"**Predicción:** Albañilería con ladrillo tipo {clase_superficie}")
+        st.markdown("### Clasificación del tipo de ladrillo")
+        st.markdown(f"**Tipo:** Albañilería {clase_superficie}")
         st.markdown(f"**Confianza:** {confianza:.2f}")
-
