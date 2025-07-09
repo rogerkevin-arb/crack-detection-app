@@ -14,12 +14,12 @@ import os
 import gdown
 
 
-import gdown
+#import gdown
 # Descargar modelo de segmentación
-gdown.download('https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW', 'modelo3_b2.h5', quiet=False, fuzzy=True)
+#gdown.download('https://drive.google.com/uc?id=17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW', 'modelo3_b2.h5', quiet=False, fuzzy=True)
 
 # Descargar modelo de clasificación
-gdown.download('https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu', 'clasificador_superficie_SA.h5', quiet=False, fuzzy=True)
+#gdown.download('https://drive.google.com/uc?id=1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu', 'clasificador_superficie_SA.h5', quiet=False, fuzzy=True)
 
 
 
@@ -41,17 +41,43 @@ class RepeatChannels(Layer):
     def call(self, inputs):
         return tf.tile(inputs, [1, 1, 1, self.rep])
 
-# ======== Cargar modelos ========
+
+
+# ################################
+
 @st.cache_resource
 def cargar_segmentador():
-    return load_model('modelo3_b2.h5', custom_objects={'RepeatChannels': RepeatChannels, 'loss': Weighted_Cross_Entropy(10.0)})
+    if not os.path.exists("modelo3_b2.h5"):
+        url_seg = "https://drive.google.com/file/d/17uFhBUBYeI3kfOrpetj3rQIQRVwde2YW/view?usp=sharing"
+        gdown.download(url_seg, "modelo3_b2.h5", fuzzy=True, quiet=False)
+    
+    return load_model("modelo3_b2.h5", custom_objects={'RepeatChannels': RepeatChannels, 'loss': Weighted_Cross_Entropy(10.0)})
 
 @st.cache_resource
 def cargar_clasificador():
-    return load_model('clasificador_superficie_SA.h5')
+    if not os.path.exists("modelo_clasificacion.h5"):
+        url_clas = "https://drive.google.com/file/d/1NsoipE-wltVaxEyFV3ar0-oZi4Pnyleu/view?usp=sharing"  # Reemplaza con el link real
+        gdown.download(url_clas, "modelo_clasificacion.h5", fuzzy=True, quiet=False)
+    
+    return load_model("modelo_clasificacion.h5")
+
+
 
 model_segmentador = cargar_segmentador()
 model_clasificador = cargar_clasificador()
+
+
+# ======== Cargar modelos ========
+#@st.cache_resource
+#def cargar_segmentador():
+#   return load_model('modelo3_b2.h5', custom_objects={'RepeatChannels': RepeatChannels, 'loss': Weighted_Cross_Entropy(10.0)})
+
+#@st.cache_resource
+#def cargar_clasificador():
+#    return load_model('clasificador_superficie_SA.h5')
+
+#model_segmentador = cargar_segmentador()
+#model_clasificador = cargar_clasificador()
 
 # ======== Clasificador de superficie ========
 def predecir_superficie_streamlit(img_rgb, modelo):
